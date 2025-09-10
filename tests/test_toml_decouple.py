@@ -1,4 +1,6 @@
+import os
 from dataclasses import dataclass
+from unittest import mock
 from unittest.mock import mock_open
 
 import dj_database_url
@@ -53,3 +55,11 @@ def test_config_as_dataclass(mocker):
     assert config.SECRET_KEY == "S3cre7"
     with pytest.raises(AttributeError):
         config.OTHER  # type: ignore
+
+
+@mock.patch.dict(os.environ, {"UUT_APP_NAME": "App", "UUT_LIST": "[1, 2, 3]"})
+def test_config_from_envvars():
+    config = uut.TomlDecouple(prefix="UUT_").load()
+
+    assert config.APP_NAME == "App"
+    assert config.LIST == [1, 2, 3]
