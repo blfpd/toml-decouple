@@ -1,8 +1,14 @@
 from collections.abc import Mapping
 from optparse import NO_DEFAULT
-from typing import Any, Callable, override
+from typing import Any, Callable, override, TypedDict
 
-from dj_database_url import DBConfig
+try:
+    from dj_database_url import DBConfig
+except ModuleNotFoundError:
+
+    class DBConfig(TypedDict, total=False):
+        pass
+
 
 from .toml_types import TomlValue
 

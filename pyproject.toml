@@ -1,6 +1,6 @@
 [project]
 name = "toml-decouple"
-version = "0.1.0"
+version = "0.2.0"
 description = "TOML powered .env file configuration and secrets"
 readme = "README.md"
 authors = [
@@ -27,6 +27,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+db = ["dj-database-url>=3.0.0"]
+
 [build-system]
 requires = ["uv_build>=0.8.0,<0.9"]
 build-backend = "uv_build"
@@ -34,7 +37,6 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
   "basedpyright>=1.31.0",
-  "dj-database-url>=3.0.1",
   "pytest-cov>=6.2.1",
   "pytest-django>=4.11.1",
   "pytest-mock>=3.14.1",
