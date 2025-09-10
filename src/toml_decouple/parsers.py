@@ -79,7 +79,7 @@ class TomlDecouple:
 
     @staticmethod
     def default_prefix():
-        return f"{Path('.').absolute().name}_"
+        return f"{Path('.').absolute().name.upper()}_"
 
     def load(self):
         self.settings = {
@@ -136,9 +136,12 @@ class TomlDecouple:
 
     def parse_env_vars(self):
         return {
-            k.removeprefix(self.prefix): v
+            key: value
             for k, v in environ.items()
             if k.startswith(self.prefix)
+            for key, value in self.parse_line(
+                f"{k.removeprefix(self.prefix)} = {v}"
+            ).items()
         }
 
     @classmethod
