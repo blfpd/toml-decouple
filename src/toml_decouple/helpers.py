@@ -12,7 +12,7 @@ def tuple_list(iterable: Seq[Seq[TomlValue]]) -> list[tuple[TomlValue, ...]]:
 
 
 def _find_file_up(file_name: str, directory: Path, depth: int):
-    if depth < 1 or directory.name == "/":
+    if depth < 1 or str(directory) == directory.root:
         raise RecursionError
 
     try:
@@ -31,7 +31,7 @@ def find_file_up(file_name, current, depth=5) -> Path | None:
         return None
 
 
-def find_project_name() -> str | None:
-    if pyproject := find_file_up("pyproject.toml", Path(".")):
+def find_project_name(file_name="pyproject.toml") -> str | None:
+    if pyproject := find_file_up(file_name, Path(".")):
         content = toml.load(pyproject.open("rb"))
         return content.get("project", {}).get("name")

@@ -6,6 +6,7 @@ from .parsers import ENV_FILES, SECRETS_PATHS, TomlDecouple
 
 __all__ = [
     "config",
+    "helpers",
     "ENV_FILES",
     "SECRETS_PATHS",
     "TomlDecouple",

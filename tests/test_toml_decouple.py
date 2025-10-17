@@ -61,7 +61,6 @@ def test_config_as_dataclass(mocker):
 @mock.patch.dict(os.environ, {"UUT_APP_NAME": "App", "UUT_LIST": "[1, 2, 3]"})
 def test_config_from_envvars():
     config = uut.TomlDecouple(prefix="UUT_").load()
-
     assert config.APP_NAME == "App"
     assert config.LIST == [1, 2, 3]
 
@@ -72,7 +71,7 @@ def test_prefix_from_pyproject():
 
 @mock.patch.dict(os.environ, {"CONFIG_PREFIX": "DJ_"})
 def test_prefix_from_env_var():
-    assert uut.TomlDecouple.default_prefix() == "DJ_"
+    assert uut.TomlDecouple().prefix == "DJ_"
 
 
 @mock.patch("toml_decouple.helpers.find_file_up")
@@ -80,3 +79,13 @@ def test_prefix_from_config_directory(find_file_up):
     find_file_up.return_value = None
     current_dir = Path(".").absolute()
     assert uut.TomlDecouple.default_prefix() == f"{current_dir.name.upper()}_"
+
+
+def test_failing_find_project_name():
+    assert uut.helpers.find_project_name("unknown.toml") is None
+
+
+def test_tuple_list():
+    assert uut.tuple_list([["Admin", "admin@example.com"]]) == [
+        ("Admin", "admin@example.com")
+    ]

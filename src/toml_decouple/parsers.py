@@ -63,7 +63,7 @@ class TomlDecouple:
         """
         self.env_files: list[str] = list(env_files)
         self.secrets: list[Path] = [Path(p) for p in secrets if Path(p).exists()]
-        self.prefix: str = prefix if prefix is not None else self.default_prefix()
+        self.prefix: str = self.fix_prefix(prefix)
         self._initial: dict[str, TomlValue] | None = initial
         self.settings: TomlDict = initial or {}
 
@@ -79,20 +79,25 @@ class TomlDecouple:
             "prefix": self.prefix,
         }
 
-    @staticmethod
-    def find_default_prefix():
-        if env_prefix := environ.get("CONFIG_PREFIX"):
-            return env_prefix
-        if project_name := find_project_name():
-            prefix = project_name.strip().upper().replace("-", "_")
-            return f"{prefix}_"
-        return f"{Path('.').absolute().name.upper()}_"
+    @classmethod
+    def fix_prefix(cls, prefix: str | None):
+        if prefix is None:
+            return environ.get("CONFIG_PREFIX") or cls.default_prefix()
+        return f"{prefix.removesuffix('_')}_"
 
     @classmethod
     def default_prefix(cls):
         prefix = cls.find_default_prefix()
-        print(f"toml_decouple: Using default env variable prefix: `{prefix}`")
+        if environ.get("RUN_MAIN") == "true":
+            print("toml_decouple: Using default env variable prefix:", prefix)
         return prefix
+
+    @staticmethod
+    def find_default_prefix():
+        if project_name := find_project_name():
+            prefix = project_name.strip().upper().replace("-", "_")
+            return f"{prefix}_"
+        return f"{Path('.').absolute().name.upper()}_"
 
     def load(self):
         self.settings = {
