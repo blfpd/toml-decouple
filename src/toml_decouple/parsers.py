@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TypeVar
 
 
+from .helpers import find_project_name
 from .settings import TomlSettings
 from .toml_types import TomlValue, TomlDict
 
@@ -47,8 +48,9 @@ class TomlDecouple:
                      variables or secrets. Defaults to an empty dictionary `{}`.
             prefix: An optional string prefix used to filter environment variables.
                     Only environment variables starting with this prefix (case-sensitive)
-                    will be considered by the parser. If `None`, defaults to the name
-                    of the current working directory in uppercase (e.g.: `MY_PROJECT_`).
+                    will be considered by the parser. If `None`, defaults to the value of
+                    environment variable `CONFIG_PREFIX` (e.g.: `CONFIG_PREFIX=DJ_`)
+                    or the name of the current working directory in uppercase (e.g.: `MY_PROJECT_`).
 
         Attributes:
             settings (TomlDict): The dictionary where parsed configuration values
@@ -78,8 +80,19 @@ class TomlDecouple:
         }
 
     @staticmethod
-    def default_prefix():
+    def find_default_prefix():
+        if env_prefix := environ.get("CONFIG_PREFIX"):
+            return env_prefix
+        if project_name := find_project_name():
+            prefix = project_name.strip().upper().replace("-", "_")
+            return f"{prefix}_"
         return f"{Path('.').absolute().name.upper()}_"
+
+    @classmethod
+    def default_prefix(cls):
+        prefix = cls.find_default_prefix()
+        print(f"toml_decouple: Using default env variable prefix: `{prefix}`")
+        return prefix
 
     def load(self):
         self.settings = {
@@ -135,14 +148,11 @@ class TomlDecouple:
         return settings
 
     def parse_env_vars(self):
-        return {
-            key: value
-            for k, v in environ.items()
-            if k.startswith(self.prefix)
-            for key, value in self.parse_line(
-                f"{k.removeprefix(self.prefix)} = {v}"
-            ).items()
-        }
+        vars = {}
+        for k, v in environ.items():
+            if k.startswith(self.prefix):
+                vars.update(self.parse_line(f"{k.removeprefix(self.prefix)} = {v}"))
+        return vars
 
     @classmethod
     def parse_lines(cls, content: str) -> TomlDict:

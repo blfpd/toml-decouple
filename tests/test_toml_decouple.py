@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from unittest import mock
 from unittest.mock import mock_open
 
@@ -63,3 +64,19 @@ def test_config_from_envvars():
 
     assert config.APP_NAME == "App"
     assert config.LIST == [1, 2, 3]
+
+
+def test_prefix_from_pyproject():
+    assert uut.TomlDecouple.default_prefix() == "TOML_DECOUPLE_"
+
+
+@mock.patch.dict(os.environ, {"CONFIG_PREFIX": "DJ_"})
+def test_prefix_from_env_var():
+    assert uut.TomlDecouple.default_prefix() == "DJ_"
+
+
+@mock.patch("toml_decouple.helpers.find_file_up")
+def test_prefix_from_config_directory(find_file_up):
+    find_file_up.return_value = None
+    current_dir = Path(".").absolute()
+    assert uut.TomlDecouple.default_prefix() == f"{current_dir.name.upper()}_"
