@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import mock_open
 
-import dj_database_url
 import pytest
 
 import toml_decouple as uut
@@ -24,6 +23,19 @@ def test_config(mocker):
 
     assert config.APP_NAME == "MyAwesomeApp"
     assert config.DEBUG is True
+    assert config["SOME_VAR_WITH_EQUALS"] == "value=with=equals"
+
+
+def test_config_with_db_url(mocker):
+    import dj_database_url
+
+    env_content = """
+        DATABASE_URL = sqlite:///my.db
+    """
+    mocker.patch("builtins.open", mock_open(read_data=env_content))
+
+    config = uut.TomlDecouple().load()
+
     assert config("DATABASE_URL", to=dj_database_url.parse) == {
         "CONN_HEALTH_CHECKS": False,
         "CONN_MAX_AGE": 0,
@@ -35,7 +47,13 @@ def test_config(mocker):
         "PORT": "",
         "USER": "",
     }
-    assert config["SOME_VAR_WITH_EQUALS"] == "value=with=equals"
+
+
+def test_config_with_key_error():
+    config = uut.TomlDecouple().load()
+    with pytest.raises(KeyError) as error:
+        config.XxX
+        assert error.args[0].startswith("XxX not found")
 
 
 def test_config_as_dataclass(mocker):

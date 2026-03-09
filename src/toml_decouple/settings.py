@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from optparse import NO_DEFAULT
-from typing import Any, Callable, override, TypedDict
+from typing import Any, Callable, override, TypedDict, TYPE_CHECKING
 
 try:
     from dj_database_url import DBConfig
@@ -12,10 +12,13 @@ except ModuleNotFoundError:
 
 from .toml_types import TomlValue
 
+if TYPE_CHECKING:
+    from .parsers import TomlDecouple
+
 _reserved = ("_data", "get", "items", "keys", "values")
 
 
-def TomlSettings(mapping: dict[str, Any]):
+def TomlSettings(conf: "TomlDecouple", mapping: dict[str, Any]):
     class Settings(Mapping):
         __slots__ = tuple(sorted(mapping.keys())) + _reserved
 
@@ -27,7 +30,12 @@ def TomlSettings(mapping: dict[str, Any]):
 
         @override
         def __getitem__(self, key):
-            return self._data[key]
+            try:
+                return self._data[key]
+            except KeyError:
+                prefix = conf.prefix
+                secrets = ", ".join(map(str, conf.secrets))
+                raise KeyError(f"{key} not found in env vars `{prefix}*` or {secrets}")
 
         @override
         def __iter__(self):

@@ -106,7 +106,7 @@ class TomlDecouple:
             **self.parse_env_vars(),
             **self.settings,
         }
-        return TomlSettings(self.settings)
+        return TomlSettings(self, self.settings)
 
     def load_dataclass(self, dc: type[Dataclass]) -> Dataclass:
         if not is_dataclass(dc):

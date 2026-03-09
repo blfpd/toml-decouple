@@ -1,7 +1,7 @@
 TAG := $(shell tq --raw -f pyproject.toml 'project.version')
 
 test:
-	uv run pytest -s --reuse-db --cov-report=xml  --cov-report=html --cov-report=term:skip-covered --cov=toml_decouple
+	uv run --extra db pytest -s --reuse-db --cov-report=xml  --cov-report=html --cov-report=term:skip-covered --cov=toml_decouple
 
 bump:
 	uv version --bump minor
