@@ -35,11 +35,11 @@ jobs:
       run: uv sync --locked --all-extras --dev
 
     - name: Run tests
-      run: uv run pytest tests
+      run: make test
 
-    - name: Check type hints with BasedPyright
+    - name: Check type hints with Zuban
       run: |
-        uv run basedpyright src/toml_decouple/
+        uv run zuban check src/toml_decouple/
 
     - name: Run linting and format with Ruff
       run: |

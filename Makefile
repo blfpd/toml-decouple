@@ -1,7 +1,10 @@
 TAG := $(shell tq --raw -f pyproject.toml 'project.version')
 
 test:
-	uv run --extra db pytest -s --reuse-db --cov-report=xml  --cov-report=html --cov-report=term:skip-covered --cov=toml_decouple
+	uv run --extra db pytest -s --doctest-modules --cov-report=xml  --cov-report=html --cov-report=term:skip-covered --cov=toml_decouple
+
+type:
+	uv run zuban check src/toml_decouple
 
 bump:
 	uv version --bump minor
@@ -12,5 +15,5 @@ bump:
 
 publish:
 	git tag -a $(TAG) -m v$(TAG)
-	git push --tags
+	git push
 	gh release create --notes-from-tag $(TAG)

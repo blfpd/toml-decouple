@@ -4,17 +4,22 @@ from collections.abc import Sequence as Seq
 from dataclasses import is_dataclass
 from os import environ
 from pathlib import Path
-from typing import TypeVar
-
+from typing import TYPE_CHECKING
 
 from .helpers import find_project_name
 from .settings import TomlSettings
-from .toml_types import TomlValue, TomlDict
+from .toml_types import TomlDict
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 ENV_FILES = (".env", ".env.local")
 SECRETS_PATHS = ("/run/secrets",)
+NULL_VALUES = {"none", "nil", "null"}
 
-Dataclass = TypeVar("Dataclass", bound=object)
+
+def is_null(value) -> bool:
+    return value.lower() in NULL_VALUES
 
 
 class TomlDecouple:
@@ -64,7 +69,7 @@ class TomlDecouple:
         self.env_files: list[str] = list(env_files)
         self.secrets: list[Path] = [Path(p) for p in secrets if Path(p).exists()]
         self.prefix: str = self.fix_prefix(prefix)
-        self._initial: dict[str, TomlValue] | None = initial
+        self._initial: TomlDict | None = initial
         self.settings: TomlDict = initial or {}
 
     @property
@@ -108,22 +113,21 @@ class TomlDecouple:
         }
         return TomlSettings(self, self.settings)
 
-    def load_dataclass(self, dc: type[Dataclass]) -> Dataclass:
+    def load_dataclass[D: DataclassInstance](self, dc: type[D]) -> D:
         if not is_dataclass(dc):
             raise TypeError(f"Object {dc!r} doesn’t seem to be a Dataclass")
         if not type(dc).__name__ == "type":
-            dc_name = dc.__class__.__name__  # type: ignore
             raise TypeError(
                 "The Dataclass should not be instanciated. "
-                + f"Try: TomlDecouple().load({dc_name})"
+                f"Try: TomlDecouple().load_dataclass({dc.__class__.__name__})"
             )
-        fields = dc.__dataclass_fields__.items()
 
         self.load()
 
+        fields = dc.__dataclass_fields__.items()
         return dc(
             **{
-                key: field.type(self.settings.get(key, field.default))  # pyright: ignore[reportCallIssue]
+                key: field.type(self.settings.get(key, field.default))
                 for key, field in fields
                 if key in self.settings
             }
@@ -168,6 +172,17 @@ class TomlDecouple:
 
     @classmethod
     def parse_line(cls, line: str) -> TomlDict:
+        """Takes liberties from TOML spec regarding strings and null values.
+
+        >>> TomlDecouple.parse_line('key = "standard string"')
+        {'key': 'standard string'}
+
+        >>> TomlDecouple.parse_line('key = NudeString')
+        {'key': 'NudeString'}
+
+        >>> TomlDecouple.parse_line('key = NULL')
+        {'key': None}
+        """
         line = line.strip()
         try:
             return tomllib.loads(line)
@@ -175,7 +190,8 @@ class TomlDecouple:
             m = re.search(r"^(?P<key>\w+) ?= ?(?P<value>\S+)", line)
             if m is None:
                 raise error
-            return {m["key"]: m["value"]}
+            value = None if is_null(m["value"]) else m["value"]
+            return {m["key"]: value}
 
     def debug(self):
         for key, value in self.settings.items():

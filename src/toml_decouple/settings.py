@@ -1,16 +1,17 @@
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from optparse import NO_DEFAULT
-from typing import Any, Callable, override, TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypedDict, cast, override
 
-try:
-    from dj_database_url import DBConfig
-except ModuleNotFoundError:
+if TYPE_CHECKING:
+    try:
+        from dj_database_url import DBConfig
+    except ModuleNotFoundError:
 
-    class DBConfig(TypedDict, total=False):
-        pass
+        class DBConfig(TypedDict, total=False):  # type: ignore[no-redef]
+            pass
 
 
-from .toml_types import TomlValue
+from .toml_types import NoDefault, OptTomlValue, TomlValue
 
 if TYPE_CHECKING:
     from .parsers import TomlDecouple
@@ -22,14 +23,14 @@ def TomlSettings(conf: "TomlDecouple", mapping: dict[str, Any]):
     class Settings(Mapping):
         __slots__ = tuple(sorted(mapping.keys())) + _reserved
 
-        def __init__(self, data: Mapping[str, Any]):
+        def __init__(self, data: Mapping[str, TomlValue]):
             if not isinstance(data, Mapping):
                 raise TypeError("TomlSettings requires a Mapping")
             # Make a shallow copy to ensure immutability:
             self._data = dict(data)
 
         @override
-        def __getitem__(self, key):
+        def __getitem__[T: TomlValue](self, key: str) -> TomlValue:
             try:
                 return self._data[key]
             except KeyError:
@@ -60,18 +61,18 @@ def TomlSettings(conf: "TomlDecouple", mapping: dict[str, Any]):
             # Required for being hashable (i.e. usable as dict keys or in sets)
             return hash(frozenset(self._data.items()))
 
-        def __call__(
+        def __call__[T: OptTomlValue | DBConfig](
             self,
             name: str,
-            default=NO_DEFAULT,
-            to: Callable[..., TomlValue | DBConfig] | None = None,
-        ) -> TomlValue | DBConfig | None:
+            default: T | NoDefault = NO_DEFAULT,
+            to: Callable[[OptTomlValue], T] | None = None,
+        ) -> T:
             val = (
-                self._data[name]
+                self._data.get(name)
                 if default is NO_DEFAULT
                 else self._data.get(name, default)
             )
-            return to(val) if to else val
+            return to(val) if to else cast(T, val)
 
         @override
         def __getattribute__(self, name: str, /) -> TomlValue:

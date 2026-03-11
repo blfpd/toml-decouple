@@ -16,6 +16,7 @@ def test_config(mocker):
     DEBUG = true
     DATABASE_URL = sqlite:///my.db
     SOME_VAR_WITH_EQUALS=value=with=equals
+    SOME_NULL_VALUE = NIL
     """
     mocker.patch("builtins.open", mock_open(read_data=env_content))
 
@@ -24,6 +25,7 @@ def test_config(mocker):
     assert config.APP_NAME == "MyAwesomeApp"
     assert config.DEBUG is True
     assert config["SOME_VAR_WITH_EQUALS"] == "value=with=equals"
+    assert config.SOME_NULL_VALUE is None
 
 
 def test_config_with_db_url(mocker):
