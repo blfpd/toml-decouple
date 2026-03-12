@@ -21,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development",
   "Topic :: Utilities",
   "Typing :: Typed",
@@ -45,4 +46,6 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+minversion = "6.0"
 pythonpath = ["."]
+addopts = "-rx --doctest-modules --cov-report=xml  --cov-report=html --cov-report=term:skip-covered --cov=toml_decouple"

@@ -1,10 +1,10 @@
 TAG := $(shell tq --raw -f pyproject.toml 'project.version')
 
 test:
-	uv run --extra db pytest -s --doctest-modules --cov-report=xml  --cov-report=html --cov-report=term:skip-covered --cov=toml_decouple
+	uv run --extra db pytest
 
-type:
-	uv run zuban check src/toml_decouple
+typecheck:
+	uv run zuban check
 
 bump:
 	uv version --bump minor
