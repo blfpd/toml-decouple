@@ -1,3 +1,4 @@
+import logging
 import re
 import tomllib
 from collections.abc import Sequence as Seq
@@ -14,8 +15,10 @@ if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 
 ENV_FILES = (".env", ".env.local")
-SECRETS_PATHS = ("/run/secrets",)
+SECRETS_DIRS = ("/run/secrets",)
 NULL_VALUES = {"none", "nil", "null"}
+
+log = logging.getLogger(__name__)
 
 
 def is_null(value) -> bool:
@@ -26,7 +29,7 @@ class TomlDecouple:
     def __init__(
         self,
         env_files: Seq[str] = ENV_FILES,
-        secrets: Seq[str] = SECRETS_PATHS,
+        secret_dirs: Seq[str] = SECRETS_DIRS,
         initial: TomlDict | None = None,
         prefix: str | None = None,
     ):
@@ -43,7 +46,7 @@ class TomlDecouple:
                        Files are processed in the order provided, with later files
                        overriding values from earlier ones. Defaults to
                        `(".env", ".env.local")`).
-            secrets: A sequence of directory paths where secrets are stored.
+            secret_dirs: A sequence of directory paths where secrets are stored.
                      Each file within these directories is treated as a secret,
                      with its name as the key and content as the value.
                      Only existing paths are considered. Defaults to
@@ -59,18 +62,20 @@ class TomlDecouple:
 
         Attributes:
             settings (TomlDict): The dictionary where parsed configuration values
-                                  will be stored. Initially set to `initial` or `{}`.
-            env_files (list[str]): The list of .env file paths to be processed.
-            secrets (list[Path]): The list of `pathlib.Path` objects for existing
-                                  secret directories.
+                                 will be stored. Initially set to `initial` or `{}`.
+            env_files (list[Path]): The list of .env file paths to be processed.
+            secret_dirs (list[Path]): The list of `pathlib.Path` objects for existing
+                                      secret directories.
             prefix (str): The environment variable prefix used by the parser.
                           Defaults to the current directory name if not provided.
         """
-        self.env_files: list[str] = list(env_files)
-        self.secrets: list[Path] = [Path(p) for p in secrets if Path(p).exists()]
+        self.env_files: list[Path] = [Path(p) for p in env_files if Path(p).exists()]
+        self.secret_dirs: list[Path] = [
+            Path(p) for p in secret_dirs if Path(p).exists()
+        ]
         self.prefix: str = self.fix_prefix(prefix)
-        self._initial: TomlDict | None = initial
-        self.settings: TomlDict = initial or {}
+        self._initial: TomlDict = initial or {}
+        self._settings: TomlSettings | None = None
 
     @property
     def configuration(self):
@@ -80,7 +85,7 @@ class TomlDecouple:
         return {
             "initial": self._initial,
             "env_files": self.env_files,
-            "secrets": self.secrets,
+            "secret_dirs": self.secret_dirs,
             "prefix": self.prefix,
         }
 
@@ -93,8 +98,9 @@ class TomlDecouple:
     @classmethod
     def default_prefix(cls):
         prefix = cls.find_default_prefix()
+        # Reminder while running ./manage.py runserver
         if environ.get("RUN_MAIN") == "true":
-            print("toml_decouple: Using default env variable prefix:", prefix)
+            log.debug("Using default env variable prefix: %s" % prefix)
         return prefix
 
     @staticmethod
@@ -104,49 +110,46 @@ class TomlDecouple:
             return f"{prefix}_"
         return f"{Path('.').absolute().name.upper()}_"
 
-    def load(self):
-        self.settings = {
-            **self.parse_env(),
-            **self.parse_secrets(),
-            **self.parse_env_vars(),
-            **self.settings,
-        }
-        return TomlSettings(self, self.settings)
+    def load(self) -> TomlSettings:
+        if self._settings is None:
+            self._settings = TomlSettings(
+                dot_envs=self.parse_dot_envs(),
+                secrets=self.parse_secrets(),
+                env_vars=self.parse_env_vars(),
+                initial=self._initial or {},
+            )
+        return self._settings
 
     def load_dataclass[D: DataclassInstance](self, dc: type[D]) -> D:
         if not is_dataclass(dc):
-            raise TypeError(f"Object {dc!r} doesn’t seem to be a Dataclass")
+            raise TypeError(f"{dc!r} doesn’t seem to be a Dataclass")
         if not type(dc).__name__ == "type":
             raise TypeError(
                 "The Dataclass should not be instanciated. "
                 f"Try: TomlDecouple().load_dataclass({dc.__class__.__name__})"
             )
 
-        self.load()
-
+        settings = self.load()
         fields = dc.__dataclass_fields__.items()
         return dc(
             **{
-                key: field.type(self.settings.get(key, field.default))
+                key: field.type(settings.get(key, field.default))
                 for key, field in fields
-                if key in self.settings
+                if key in settings
             }
         )
 
-    def parse_env(self):
+    def parse_dot_envs(self):
         settings: TomlDict = {}
-        for filename in self.env_files:
-            try:
-                with open(filename) as f:
-                    content = f.read().strip()
-            except FileNotFoundError:
-                continue
+        for path in self.env_files:
+            with open(path) as f:
+                content = f.read().strip()
             settings = {**settings, **self.parse_lines(content)}
         return settings
 
     def parse_secrets(self):
         settings: TomlDict = {}
-        for secrets_path in self.secrets:
+        for secrets_path in self.secret_dirs:
             for secret_file in secrets_path.iterdir():
                 with open(secret_file) as f:
                     content = f.read().strip()
@@ -157,7 +160,7 @@ class TomlDecouple:
         return settings
 
     def parse_env_vars(self):
-        vars = {}
+        vars: TomlDict = {}
         for k, v in environ.items():
             if k.startswith(self.prefix):
                 vars.update(self.parse_line(f"{k.removeprefix(self.prefix)} = {v}"))
@@ -194,5 +197,5 @@ class TomlDecouple:
             return {m["key"]: value}
 
     def debug(self):
-        for key, value in self.settings.items():
+        for key, value in self.load().items():
             print(f"{key} = {repr(value)}")

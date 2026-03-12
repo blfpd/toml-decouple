@@ -6,6 +6,10 @@ test:
 typecheck:
 	uv run zuban check
 
+lint:
+	uv run ruff check .
+	uv run ruff format . --check
+
 bump:
 	uv version --bump minor
 	@echo ""
@@ -15,5 +19,10 @@ bump:
 
 publish:
 	git tag -a $(TAG) -m v$(TAG)
-	git push
+	git push --force-with-lease
 	gh release create --notes-from-tag $(TAG)
+
+untag:
+	git tag -d $(TAG)
+	git push origin :$(TAG)
+	

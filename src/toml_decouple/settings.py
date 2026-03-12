@@ -1,89 +1,75 @@
 from collections.abc import Callable, Mapping
 from optparse import NO_DEFAULT
-from typing import TYPE_CHECKING, Any, TypedDict, cast, override
+from typing import Any, cast, override
 
-if TYPE_CHECKING:
-    try:
-        from dj_database_url import DBConfig
-    except ModuleNotFoundError:
-
-        class DBConfig(TypedDict, total=False):  # type: ignore[no-redef]
-            pass
-
-
-from .toml_types import NoDefault, OptTomlValue, TomlValue
-
-if TYPE_CHECKING:
-    from .parsers import TomlDecouple
+from .toml_types import NoDefault, OptTomlValue, TomlDict
 
 _reserved = ("_data", "get", "items", "keys", "values")
 
 
-def TomlSettings(conf: "TomlDecouple", mapping: dict[str, Any]):
-    class Settings(Mapping):
-        __slots__ = tuple(sorted(mapping.keys())) + _reserved
+class TomlSettings(Mapping):
+    def __init__(
+        self,
+        dot_envs: TomlDict,
+        secrets: TomlDict,
+        env_vars: TomlDict,
+        initial: TomlDict,
+    ):
+        for d in [dot_envs, secrets, env_vars, initial]:
+            if not isinstance(d, Mapping):
+                raise TypeError(f"{d} is not a dict")
 
-        def __init__(self, data: Mapping[str, TomlValue]):
-            if not isinstance(data, Mapping):
-                raise TypeError("TomlSettings requires a Mapping")
-            # Make a shallow copy to ensure immutability:
-            self._data = dict(data)
+        # Make a shallow copy to ensure immutability:
+        self._data = dict({**dot_envs, **secrets, **env_vars, **initial})
 
-        @override
-        def __getitem__[T: TomlValue](self, key: str) -> TomlValue:
-            try:
-                return self._data[key]
-            except KeyError:
-                prefix = conf.prefix
-                secrets = ", ".join(map(str, conf.secrets))
-                raise KeyError(f"{key} not found in env vars `{prefix}*` or {secrets}")
+        self.__slots__ = tuple(sorted(self._data.keys())) + _reserved
 
-        @override
-        def __iter__(self):
-            return iter(self._data)
+    @override
+    def __getitem__[T: OptTomlValue](self, key: str) -> T:
+        return cast(T, self._data[key])
 
-        @override
-        def __len__(self):
-            return len(self._data)
+    @override
+    def __iter__(self):
+        return iter(self._data)
 
-        @override
-        def __repr__(self):
-            return f"{self.__class__.__name__}({self._data!r})"
+    @override
+    def __len__(self):
+        return len(self._data)
 
-        @override
-        def __eq__(self, other):
-            if isinstance(other, Mapping):
-                return dict(self.items()) == dict(other.items())
-            return NotImplemented
+    @override
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._data!r})"
 
-        @override
-        def __hash__(self):
-            # Required for being hashable (i.e. usable as dict keys or in sets)
-            return hash(frozenset(self._data.items()))
+    @override
+    def __eq__(self, other):
+        if isinstance(other, Mapping):
+            return dict(self.items()) == dict(other.items())
+        return NotImplemented
 
-        def __call__[T: OptTomlValue | DBConfig](
-            self,
-            name: str,
-            default: T | NoDefault = NO_DEFAULT,
-            to: Callable[[OptTomlValue], T] | None = None,
-        ) -> T:
-            val = (
-                self._data.get(name)
-                if default is NO_DEFAULT
-                else self._data.get(name, default)
-            )
-            return to(val) if to else cast(T, val)
+    @override
+    def __hash__(self):
+        # Required for being hashable (i.e. usable as dict keys or in sets)
+        return hash(frozenset(self._data.items()))
 
-        @override
-        def __getattribute__(self, name: str, /) -> TomlValue:
-            if name.startswith("__") or name in _reserved:
-                return super().__getattribute__(name)
-            return self._data[name]
+    def __call__[T](
+        self,
+        name: str,
+        default: T | NoDefault = NO_DEFAULT,
+        to: Callable[[Any], T] | None = None,
+    ) -> T:
+        val = (
+            self._data[name] if default is NO_DEFAULT else self._data.get(name, default)
+        )
+        return to(val) if to else cast(T, val)
 
-        @override
-        def __str__(self) -> str:
-            return "TomlSettings:\n" + "\n".join(
-                [f"  {k} = {v!r}" for k, v in self._data.items()]
-            )
+    @override
+    def __getattribute__[T: OptTomlValue](self, name: str, /) -> T:
+        if name.startswith("__") or name in _reserved:
+            return super().__getattribute__(name)
+        return cast(T, self._data[name])
 
-    return Settings(mapping)
+    @override
+    def __str__(self) -> str:
+        return "TomlSettings:\n" + "\n".join(
+            [f"  {k} = {v!r}" for k, v in self._data.items()]
+        )
