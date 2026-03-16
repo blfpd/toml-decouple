@@ -271,6 +271,7 @@ dev = [
     { name = "pytest-django" },
     { name = "pytest-mock" },
     { name = "ruff" },
+    { name = "toml-decouple" },
     { name = "zuban" },
 ]
 
@@ -285,6 +286,7 @@ dev = [
     { name = "pytest-django", specifier = ">=4.11.1" },
     { name = "pytest-mock", specifier = ">=3.14.1" },
     { name = "ruff", specifier = ">=0.12.4" },
+    { name = "toml-decouple", editable = "." },
     { name = "zuban", specifier = ">=0.6.1" },
 ]
 

@@ -42,6 +42,7 @@ dev = [
   "pytest-mock>=3.14.1",
   "pytest>=8.4.1",
   "ruff>=0.12.4",
+  "toml-decouple",
   "zuban>=0.6.1",
 ]
 
@@ -49,3 +50,9 @@ dev = [
 minversion = "6.0"
 pythonpath = ["."]
 addopts = "-rx --doctest-modules --cov-report=xml  --cov-report=html --cov-report=term:skip-covered --cov=toml_decouple"
+
+[tool.uv.workspace]
+members = ["."]
+
+[tool.uv.sources]
+toml-decouple = { workspace = true, editable = true }
