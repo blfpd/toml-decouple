@@ -163,7 +163,6 @@ class TomlDecouple:
         vars: TomlDict = {}
         for k, v in environ.items():
             if k.startswith(self.prefix):
-                print(k, "||", repr(v))
                 vars.update(self.parse_line(f"{k.removeprefix(self.prefix)} = {v}"))
         return vars
 

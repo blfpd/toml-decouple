@@ -16,7 +16,7 @@ def env(mocker):
     env_content = """
     # This is a comment
     APP_NAME = MyAwesomeApp
-    DEBUG = true
+    DEBUG = false
     DATABASE_URL = sqlite:///my.db
     SOME_VAR_WITH_EQUALS=value=with=equals
     SOME_NULL_VALUE = NIL
@@ -32,7 +32,7 @@ def config(env):
 
 def test_config(config):
     assert config.APP_NAME == "MyAwesomeApp"
-    assert config.DEBUG is True
+    assert config.DEBUG is False
     assert config["SOME_VAR_WITH_EQUALS"] == "value=with=equals"
     assert config.SOME_NULL_VALUE is None
     assert config.SOME_EMPTY_VALUE == ""
@@ -164,6 +164,18 @@ def test_show_configuration(env):
     }
 
 
+def test_dir(config):
+    keys = {
+        "APP_NAME",
+        "DEBUG",
+        "DATABASE_URL",
+        "SOME_VAR_WITH_EQUALS",
+        "SOME_NULL_VALUE",
+        "SOME_EMPTY_VALUE",
+    }
+    assert set(dir(config)) & keys == keys
+
+
 def test_iter(config):
     assert tuple(config) == (
         "APP_NAME",
@@ -197,7 +209,7 @@ def test_str(config):
     string = dedent("""
         TomlSettings:
           APP_NAME = 'MyAwesomeApp'
-          DEBUG = True
+          DEBUG = False
           DATABASE_URL = 'sqlite:///my.db'
           SOME_VAR_WITH_EQUALS = 'value=with=equals'
           SOME_NULL_VALUE = None
@@ -209,12 +221,17 @@ def test_str(config):
 def test_repr(config):
     assert repr(config) == (
         "TomlSettings({'APP_NAME': 'MyAwesomeApp', "
-        "'DEBUG': True, "
+        "'DEBUG': False, "
         "'DATABASE_URL': 'sqlite:///my.db', "
         "'SOME_VAR_WITH_EQUALS': 'value=with=equals', "
         "'SOME_NULL_VALUE': None, "
         "'SOME_EMPTY_VALUE': ''})"
     )
+
+
+def test_setattr(config):
+    with pytest.raises(AttributeError, match="is read-only"):
+        config.DEBUG = True
 
 
 def test_debug(env):

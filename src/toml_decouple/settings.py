@@ -1,10 +1,9 @@
 from collections.abc import Callable, Mapping
 from optparse import NO_DEFAULT
 from typing import Any, cast, override
-
 from .toml_types import NoDefault, OptTomlValue, TomlDict
 
-_reserved = ("_data", "get", "items", "keys", "values")
+_reserved = ("get", "items", "keys", "values")
 
 
 class TomlSettings(Mapping):
@@ -19,28 +18,27 @@ class TomlSettings(Mapping):
             if not isinstance(d, Mapping):
                 raise TypeError(f"{d} is not a dict")
 
-        # Make a shallow copy to ensure immutability:
-        self._data = dict({**dot_envs, **secrets, **env_vars, **initial})
+        self.__data = {**dot_envs, **secrets, **env_vars, **initial}
 
-        self.__slots__ = tuple(sorted(self._data.keys())) + _reserved
+    def __dir__(self):
+        return (
+            a
+            for a in (*self.__data.keys(), *super().__dir__())
+            if not a.endswith("__data")
+        )
 
-    @override
     def __getitem__[T: OptTomlValue](self, key: str) -> T:
-        return cast(T, self._data[key])
+        return cast(T, self.__data[key])
 
-    @override
     def __iter__(self):
-        return iter(self._data)
+        return iter(self.__data)
 
-    @override
     def __len__(self):
-        return len(self._data)
+        return len(self.__data)
 
-    @override
     def __repr__(self):
-        return f"{self.__class__.__name__}({self._data!r})"
+        return f"{self.__class__.__name__}({self.__data!r})"
 
-    @override
     def __eq__(self, other):
         if isinstance(other, Mapping):
             return dict(self.items()) == dict(other.items())
@@ -49,7 +47,7 @@ class TomlSettings(Mapping):
     @override
     def __hash__(self):
         # Required for being hashable (i.e. usable as dict keys or in sets)
-        return hash(frozenset(self._data.items()))
+        return hash(frozenset(self.__data.items()))
 
     def __call__[T](
         self,
@@ -58,18 +56,27 @@ class TomlSettings(Mapping):
         to: Callable[[Any], T] | None = None,
     ) -> T:
         val = (
-            self._data[name] if default is NO_DEFAULT else self._data.get(name, default)
+            self.__data[name]
+            if default is NO_DEFAULT
+            else self.__data.get(name, default)
         )
         return to(val) if to else cast(T, val)
 
-    @override
-    def __getattribute__[T: OptTomlValue](self, name: str, /) -> T:
+    def __getattr__[T: OptTomlValue](self, name: str, /) -> T:
         if name.startswith("__") or name in _reserved:
             return super().__getattribute__(name)
-        return cast(T, self._data[name])
+        return cast(T, self.__data[name])
 
-    @override
+    def __setattr__(self, name: str, value: Any):
+        if name == f"_{self.__class__.__name__}__data":
+            super().__setattr__(name, value)
+            return
+
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object attribute '{name}' is read-only"
+        )
+
     def __str__(self) -> str:
-        return "TomlSettings:\n" + "\n".join(
-            [f"  {k} = {v!r}" for k, v in self._data.items()]
+        return f"{self.__class__.__name__}:\n" + "\n".join(
+            [f"  {k} = {v!r}" for k, v in self.__data.items()]
         )
