@@ -1,6 +1,6 @@
 [project]
 name = "toml-decouple"
-version = "0.9.0"
+version = "0.10.0"
 description = "TOML powered .env file configuration and secrets"
 readme = "README.md"
 authors = [

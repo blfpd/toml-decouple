@@ -3,7 +3,6 @@ import os
 from dataclasses import dataclass
 from pathlib import Path, PosixPath
 from textwrap import dedent
-from tomllib import TOMLDecodeError
 from unittest import mock
 from unittest.mock import mock_open
 
@@ -21,6 +20,7 @@ def env(mocker):
     DATABASE_URL = sqlite:///my.db
     SOME_VAR_WITH_EQUALS=value=with=equals
     SOME_NULL_VALUE = NIL
+    SOME_EMPTY_VALUE=
     """
     mocker.patch("builtins.open", mock_open(read_data=env_content))
 
@@ -35,6 +35,7 @@ def test_config(config):
     assert config.DEBUG is True
     assert config["SOME_VAR_WITH_EQUALS"] == "value=with=equals"
     assert config.SOME_NULL_VALUE is None
+    assert config.SOME_EMPTY_VALUE == ""
 
 
 def test_secrets_dirs(mocker):
@@ -45,8 +46,8 @@ def test_secrets_dirs(mocker):
 
 
 def test_config_fail(mocker):
-    mocker.patch("builtins.open", mock_open(read_data="SOME_INVALID_VALUE ="))
-    with pytest.raises(TOMLDecodeError, match="Invalid value"):
+    mocker.patch("builtins.open", mock_open(read_data="INVALID_VALUE"))
+    with pytest.raises(uut.parsers.TomlDecoupleError, match=": 'INVALID_VALUE'"):
         uut.TomlDecouple().load()
 
 
@@ -99,11 +100,14 @@ def test_config_as_dataclass_fail(env):
         uut.TomlDecouple().load_dataclass(Dummy())  # type: ignore[arg-type]
 
 
-@mock.patch.dict(os.environ, {"UUT_APP_NAME": "App", "UUT_LIST": "[1, 2, 3]"})
+@mock.patch.dict(
+    os.environ, {"UUT_APP_NAME": "App", "UUT_LIST": "[1, 2, 3]", "UUT_NONE": ""}
+)
 def test_config_from_envvars():
     config = uut.TomlDecouple(prefix="UUT_").load()
     assert config.APP_NAME == "App"
     assert config.LIST == [1, 2, 3]
+    assert config.NONE == ""
 
 
 def test_prefix_from_pyproject():
@@ -167,11 +171,12 @@ def test_iter(config):
         "DATABASE_URL",
         "SOME_VAR_WITH_EQUALS",
         "SOME_NULL_VALUE",
+        "SOME_EMPTY_VALUE",
     )
 
 
 def test_len(config):
-    assert len(config) == 5
+    assert len(config) == 6
 
 
 def test_eq(config):
@@ -195,7 +200,8 @@ def test_str(config):
           DEBUG = True
           DATABASE_URL = 'sqlite:///my.db'
           SOME_VAR_WITH_EQUALS = 'value=with=equals'
-          SOME_NULL_VALUE = None                                     
+          SOME_NULL_VALUE = None
+          SOME_EMPTY_VALUE = ''
      """)
     assert str(config) == string.strip()
 
@@ -206,7 +212,8 @@ def test_repr(config):
         "'DEBUG': True, "
         "'DATABASE_URL': 'sqlite:///my.db', "
         "'SOME_VAR_WITH_EQUALS': 'value=with=equals', "
-        "'SOME_NULL_VALUE': None})"
+        "'SOME_NULL_VALUE': None, "
+        "'SOME_EMPTY_VALUE': ''})"
     )
 
 

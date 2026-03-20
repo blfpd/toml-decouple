@@ -1,6 +1,6 @@
 from collections.abc import Sequence as Seq
 from pathlib import Path
-import tomllib as toml
+import tomllib
 
 from .toml_types import TomlValue
 
@@ -33,5 +33,5 @@ def find_file_up(file_name, current, depth=5) -> Path | None:
 
 def find_project_name(file_name="pyproject.toml") -> str | None:
     if pyproject := find_file_up(file_name, Path(".")):
-        content = toml.load(pyproject.open("rb"))
+        content = tomllib.load(pyproject.open("rb"))
         return content.get("project", {}).get("name")

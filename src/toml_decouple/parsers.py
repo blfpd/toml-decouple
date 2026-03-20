@@ -21,8 +21,8 @@ NULL_VALUES = {"none", "nil", "null"}
 log = logging.getLogger(__name__)
 
 
-def is_null(value) -> bool:
-    return value.lower() in NULL_VALUES
+class TomlDecoupleError(ValueError):
+    pass
 
 
 class TomlDecouple:
@@ -163,6 +163,7 @@ class TomlDecouple:
         vars: TomlDict = {}
         for k, v in environ.items():
             if k.startswith(self.prefix):
+                print(k, "||", repr(v))
                 vars.update(self.parse_line(f"{k.removeprefix(self.prefix)} = {v}"))
         return vars
 
@@ -185,16 +186,36 @@ class TomlDecouple:
 
         >>> TomlDecouple.parse_line('key = NULL')
         {'key': None}
+
+        >>> TomlDecouple.parse_line('key = ')
+        {'key': ''}
         """
         line = line.strip()
         try:
             return tomllib.loads(line)
         except tomllib.TOMLDecodeError as error:
-            m = re.search(r"^(?P<key>\w+) ?= ?(?P<value>\S+)", line)
-            if m is None:
-                raise error
-            value = None if is_null(m["value"]) else m["value"]
-            return {m["key"]: value}
+            if m := re.match(r"(?P<key>\w+) ?= ?(?P<value>\S+)?", line):
+                return {m["key"]: cls.parse_value(m["value"])}
+
+            msg = re.sub(r" \(.+\)", "", str(error))
+            raise TomlDecoupleError(f"{msg}: '{line}'") from error
+
+    @staticmethod
+    def parse_value(value: str | None) -> str | None:
+        """Interpret the value as string or None.
+
+        >>> TomlDecouple.parse_value('string')
+        'string'
+
+        >>> TomlDecouple.parse_value('null')
+
+        >>> TomlDecouple.parse_value(None)
+        ''
+        """
+        if value is None:
+            # Parse as empty string to be consistent with os.environ
+            return ""
+        return None if value.lower() in NULL_VALUES else value
 
     def debug(self):
         for key, value in self.load().items():
