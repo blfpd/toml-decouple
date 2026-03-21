@@ -1,10 +1,10 @@
 TAG := $(shell tq --raw -f pyproject.toml 'project.version')
 
 test:
-	uv run --extra db pytest
+	uv run --all-extras pytest
 
 typecheck:
-	uv run zuban check
+	uv run zuban check src tests
 
 lint:
 	uv run ruff check .
