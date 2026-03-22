@@ -32,7 +32,7 @@ jobs:
         enable-cache: true
 
     - name: Install the project
-      run: uv sync --locked --all-extras --dev
+      run: uv sync --all-extras --dev
 
     - name: Run tests
       run: make test
@@ -67,7 +67,7 @@ jobs:
         enable-cache: true
 
     - name: Install the project
-      run: uv sync --locked --all-extras --dev
+      run: uv sync --all-extras --dev
 
     - name: Build the project
       run: uv build
