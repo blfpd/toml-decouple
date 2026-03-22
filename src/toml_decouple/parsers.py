@@ -1,4 +1,3 @@
-import logging
 import re
 import tomllib
 from collections.abc import Sequence as Seq
@@ -17,8 +16,6 @@ if TYPE_CHECKING:
 ENV_FILES = (".env", ".env.local")
 SECRETS_DIRS = ("/run/secrets",)
 NULL_VALUES = {"none", "nil", "null"}
-
-log = logging.getLogger(__name__)
 
 
 class TomlDecoupleError(ValueError):
@@ -99,8 +96,8 @@ class TomlDecouple:
     def default_prefix(cls):
         prefix = cls.find_default_prefix()
         # Reminder while running ./manage.py runserver
-        if environ.get("RUN_MAIN") == "true":
-            log.debug("Using default env variable prefix: %s" % prefix)
+        if environ.get("RUN_MAIN") == "true" or "DEBUG" in environ:
+            print(f"Using default env variable prefix: {prefix}")
         return prefix
 
     @staticmethod
@@ -217,5 +214,5 @@ class TomlDecouple:
         return None if value.lower() in NULL_VALUES else value
 
     def debug(self):
-        for key, value in self.load().items():
+        for key, value in sorted(self.load().items()):
             print(f"{key} = {repr(value)}")

@@ -1,4 +1,3 @@
-import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path, PosixPath
@@ -118,12 +117,11 @@ def test_prefix_from_pyproject():
 
 
 @mock.patch.dict(os.environ, {"RUN_MAIN": "true"})
-def test_default_prefix_on_runserver(caplog):
-    caplog.set_level(logging.DEBUG)
-
+def test_default_prefix_on_runserver(capsys):
     uut.TomlDecouple.default_prefix()
-    assert "parsers.py" in caplog.text
-    assert "Using default env variable prefix: TOML_DECOUPLE_" in caplog.text
+
+    stdout = capsys.readouterr().out
+    assert "Using default env variable prefix: TOML_DECOUPLE_" in stdout
 
 
 @mock.patch.dict(os.environ, {"CONFIG_PREFIX": "DJ_"})
@@ -237,5 +235,14 @@ def test_setattr(config):
         config.DEBUG = True
 
 
-def test_debug(env):
+def test_debug(capsys, env):
     assert uut.TomlDecouple().debug() is None
+    stdout_lines = capsys.readouterr().out.strip().split("\n")
+    assert stdout_lines == [
+        "APP_NAME = 'MyAwesomeApp'",
+        "DATABASE_URL = 'sqlite:///my.db'",
+        "DEBUG = False",
+        "SOME_EMPTY_VALUE = ''",
+        "SOME_NULL_VALUE = None",
+        "SOME_VAR_WITH_EQUALS = 'value=with=equals'",
+    ]
