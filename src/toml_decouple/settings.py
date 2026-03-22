@@ -3,8 +3,6 @@ from optparse import NO_DEFAULT
 from typing import Any, cast, override
 from .toml_types import NoDefault, OptTomlValue, TomlDict
 
-_reserved = ("get", "items", "keys", "values")
-
 
 class TomlSettings(Mapping):
     def __init__(
@@ -53,6 +51,7 @@ class TomlSettings(Mapping):
         self,
         name: str,
         default: T | NoDefault = NO_DEFAULT,
+        *,
         to: Callable[[Any], T] | None = None,
     ) -> T:
         val = (
@@ -63,7 +62,7 @@ class TomlSettings(Mapping):
         return to(val) if to else cast(T, val)
 
     def __getattr__[T: OptTomlValue](self, name: str, /) -> T:
-        if name.startswith("__") or name in _reserved:
+        if name.startswith("__"):
             return super().__getattribute__(name)
         return cast(T, self.__data[name])
 

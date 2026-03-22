@@ -1,6 +1,6 @@
 [project]
 name = "toml-decouple"
-version = "0.11.0"
+version = "0.11.1"
 description = "TOML powered .env file configuration and secrets"
 license = "GPL-3.0-or-later"
 readme = "README.md"

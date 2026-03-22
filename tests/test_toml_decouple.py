@@ -32,10 +32,13 @@ def config(env):
 
 def test_config(config):
     assert config.APP_NAME == "MyAwesomeApp"
+    assert config.get("APP_NAME") == "MyAwesomeApp"
     assert config.DEBUG is False
     assert config["SOME_VAR_WITH_EQUALS"] == "value=with=equals"
     assert config.SOME_NULL_VALUE is None
     assert config.SOME_EMPTY_VALUE == ""
+    assert config.get("UNKNOWN") is None
+    assert config.get("UNKNOWN", "Default") == "Default"
 
 
 def test_secrets_dirs(mocker):
